@@ -51,7 +51,6 @@ export class SpeechService {
 
     this.recognition.onend = () => {
       this.isListening$.next(false);
-      // Don't automatically restart here - we'll handle that in the component
     };
 
     this.recognition.onresult = (event: any) => {
@@ -87,8 +86,30 @@ export class SpeechService {
       if (this.speechSynthesis.onvoiceschanged !== undefined) {
         this.speechSynthesis.onvoiceschanged = () => {
           this.voices = this.speechSynthesis.getVoices();
+          this.listAvailableVoices();
         };
       }
+    }
+  }
+
+  listAvailableVoices(): void {
+    if (this.speechSynthesis) {
+      const voices = this.speechSynthesis.getVoices();
+      type VoiceInfo = {
+        name: string;
+        lang: string;
+        default: boolean;
+        localService: boolean;
+      };
+      
+      const voiceInfo: VoiceInfo[] = voices.map((voice: SpeechSynthesisVoice) => ({
+        name: voice.name,
+        lang: voice.lang,
+        default: voice.default,
+        localService: voice.localService
+      }));
+      
+      console.log('Available voices:', voiceInfo);
     }
   }
 
@@ -120,7 +141,7 @@ export class SpeechService {
     }
   }
 
-  speak(text: string, options: SpeechSynthesisUtterance = new SpeechSynthesisUtterance()): Promise<void> {
+  speak(text: string): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) {
       return Promise.resolve();
     }
@@ -133,10 +154,40 @@ export class SpeechService {
 
       const utterance = new SpeechSynthesisUtterance(text);
       
-      utterance.voice = options.voice || this.voices[0];
-      utterance.pitch = options.pitch || 1;
-      utterance.rate = options.rate || 1;
-      utterance.volume = options.volume || 1;
+      // Get all available voices
+      this.voices = this.speechSynthesis.getVoices();
+      
+      // Set English Female as primary preference
+      const preferredVoices = [
+        "Google UK English Female",
+        "Microsoft Susan Mobile", // UK English Female
+        "en-GB-Standard-Female",
+        "British English Female"
+      ];
+
+      // Find the first available preferred voice
+      const selectedVoice = this.voices.find(voice => 
+        preferredVoices.includes(voice.name)
+      );
+
+      if (selectedVoice) {
+        utterance.voice = selectedVoice;
+        console.log('Using voice:', selectedVoice.name);
+      } else {
+        // Find any English female voice as fallback
+        const englishFemaleVoice = this.voices.find(voice => 
+          voice.lang.startsWith('en') && voice.name.toLowerCase().includes('female')
+        );
+        if (englishFemaleVoice) {
+          utterance.voice = englishFemaleVoice;
+          console.log('Using fallback voice:', englishFemaleVoice.name);
+        }
+      }
+
+      // Adjusted for English Female voice
+      utterance.pitch = 1.0;  // Natural pitch
+      utterance.rate = 0.95;  // Slightly slower for clarity
+      utterance.volume = 1.0; // Full volume
 
       utterance.onstart = () => {
         this.isSpeaking$.next(true);
