@@ -1,11 +1,15 @@
+// src/app/app.component.ts
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { VoiceChatComponent } from '../components/voice-chat/voice-chat.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  standalone: true,
+  imports: [VoiceChatComponent],
+  template: `
+    <app-voice-chat></app-voice-chat>
+  `,
+  styles: []
 })
 export class AppComponent {
   title = 'AlgoMock';
